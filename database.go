@@ -1,27 +1,30 @@
 package main
 
-import (	
+import (
 	"database/sql"
-	"log"
 	_ "github.com/mattn/go-sqlite3"
+	"log"
 )
 
 var DB_NAME string = "./sqlite3.db"
 
 // Initializes a new sqlite3 database; creates file and adds table
-func initDB() {
+func initDB(m ...model) {
+
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	sqlStmt := "create table names (id integer not null primary key autoincrement, first_name text, last_name text, email text, gender text);"
-
-	_, err = db.Exec(sqlStmt)
-	if err != nil {
-		log.Printf("%q: %s\n", err, sqlStmt)
-		return
+	// Loop through the model args, and create a table for each model
+	for _, v := range m {
+		command := v.genCreateTable()
+		_, err = db.Exec(command)
+		if err != nil {
+			log.Printf("%q: %s\n", err, command)
+			return
+		}
 	}
 }
 
@@ -85,12 +88,12 @@ func getResultsDB() {
 
 	for rows.Next() {
 
-		model := model{}	
+		model := model{}
 		err := rows.Scan(&model.id,
-						 &model.firstname,
-						 &model.lastname,
-						 &model.email,
-						 &model.gender)
+			&model.firstname,
+			&model.lastname,
+			&model.email,
+			&model.gender)
 
 		if err != nil {
 			log.Fatal(err)

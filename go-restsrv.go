@@ -5,18 +5,19 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
 
 type Hello struct{}
 
 func (h Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, r.Method + "\n")
+	fmt.Fprint(w, r.Method+"\n")
 	fmt.Fprint(w, r.URL)
 }
 
 // Utility function to view available header members
 func enumHeader(w *http.ResponseWriter, r *http.Request) {
-	for k, v := range(r.Header) {
+	for k, v := range r.Header {
 		fmt.Fprint(*w, k, v, "\n")
 	}
 }
@@ -28,13 +29,13 @@ func createEntry(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		err := r.ParseForm()
 		if err != nil {
-		   log.Fatal(err)
+			log.Fatal(err)
 		}
 
 		fmt.Fprint(w, r.PostForm)
 
 		model := model{}
-		model.setFields(r.PostForm)
+		model.setFieldsFromPOST(r.PostForm)
 
 		insertDB(model)
 	}
@@ -46,24 +47,30 @@ func viewEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func siteRoot(w http.ResponseWriter, r *http.Request) {
-    body, err := ioutil.ReadFile("html/index.html")
-    if err != nil {
+	body, err := ioutil.ReadFile("html/index.html")
+	if err != nil {
 		log.Fatal(err)
-    }
+	}
 
 	w.Write(body)
 }
 
 func main() {
-	initDB()
 
-	m := model{firstname: "Justin", 
-			   lastname: "Goney", 
-			   email: "goulash@gmail.com", 
-			   gender: "Male"}
+	m := model{firstname: "Justin",
+		lastname: "Goney",
+		email:    "goulash@gmail.com",
+		gender:   "Male"}
 
-	a := []model{model{firstname: "Bernice", lastname: "Smith", email: "someone@gmail.com", gender: "Female"}, 
+	a := []model{model{firstname: "Bernice", lastname: "Smith", email: "someone@gmail.com", gender: "Female"},
 		model{firstname: "McLovin", lastname: "", email: "mclovin@gmail.com", gender: "Male"}}
+
+	m.setMetaFields()
+	// Create and initialize DB only if it doesn't exist
+	if _, err := os.Stat(DB_NAME); err != nil {
+		initDB(m)
+		// initDB(a...)
+	}
 
 	insertDB(m)
 	insertDB(a...)
