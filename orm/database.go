@@ -1,7 +1,8 @@
-package main
+package orm
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 )
@@ -9,7 +10,7 @@ import (
 var DB_NAME string = "./sqlite3.db"
 
 // Initializes a new sqlite3 database; creates file and adds table
-func initDB(m ...model) {
+func InitDB(m ...Model) {
 
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
@@ -19,7 +20,7 @@ func initDB(m ...model) {
 
 	// Loop through the model args, and create a table for each model
 	for _, v := range m {
-		command := v.genCreateTable()
+		command := v.GenCreateTable()
 		_, err = db.Exec(command)
 		if err != nil {
 			log.Printf("%q: %s\n", err, command)
@@ -28,8 +29,7 @@ func initDB(m ...model) {
 	}
 }
 
-func insertDB(m ...model) error {
-	log.Println("Inserting...", m)
+func InsertDB(m ...Model) error {
 
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
@@ -44,7 +44,9 @@ func insertDB(m ...model) error {
 		return err
 	}
 
-	stmt, err := tx.Prepare("insert into names(first_name, last_name, email, gender) values(?, ?, ?, ?)")
+	command := m[0].GenInsertInto()
+	log.Println(command)
+	stmt, err := tx.Prepare(command)
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -52,19 +54,21 @@ func insertDB(m ...model) error {
 	defer stmt.Close()
 
 	for _, v := range m {
-		_, err = stmt.Exec(v.firstname, v.lastname, v.email, v.gender)
+		log.Println("Inserting...", v.String())
+
+		_, err = stmt.Exec(v.GenValueString()...)
 		if err != nil {
 			log.Fatal(err)
 			return err
 		}
+		log.Println(v.String(), " inserted!")
 	}
 
 	tx.Commit()
-	log.Println(m, " inserted!")
 	return nil
 }
 
-func getResultsDB() {
+func GetResultsDB(m Model) []Model {
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
 		log.Fatal(err)
@@ -72,13 +76,8 @@ func getResultsDB() {
 
 	defer db.Close()
 
-	// var (
-	// 	id   int
-	// 	name string
-	// )
-
-	// rows, err := db.Query("select id, name from foo where id = ?", 1)
-	rows, err := db.Query("select * from names")
+	selectStmt := fmt.Sprintf("select * from %ss", m.Meta.modelName)
+	rows, err := db.Query(selectStmt)
 
 	if err != nil {
 		log.Fatal(err)
@@ -86,20 +85,29 @@ func getResultsDB() {
 
 	defer rows.Close()
 
+	models := make([]Model, 10)
+
+	i := 0
 	for rows.Next() {
 
-		model := model{}
-		err := rows.Scan(&model.id,
-			&model.firstname,
-			&model.lastname,
-			&model.email,
-			&model.gender)
+		model := NewModel(new(MyModel))
+
+		data := make([]interface{}, model.Meta.numFields)
+		dataPtrs := make([]interface{}, model.Meta.numFields)
+
+		for i, _ := range data {
+			dataPtrs[i] = &data[i]
+		}
+
+		err := rows.Scan(dataPtrs...)
+
+		model.SetFromByteArray(data)
+		//models[i] = model
+		i++
 
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		log.Println(model)
 	}
 
 	err = rows.Err()
@@ -107,4 +115,6 @@ func getResultsDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return models
 }
