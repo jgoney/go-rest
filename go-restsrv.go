@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	//"os"
+	"os"
 	"github.com/jgoney/go-rest/orm"
 )
 
@@ -35,10 +35,11 @@ func createEntry(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Fprint(w, r.PostForm)
 
-		model := orm.Model{}
+		model := orm.MyModel{}
+		m := orm.NewModel(model)
 		//model.SetFieldsFromPOST(r.PostForm)
 
-		orm.InsertDB(model)
+		orm.InsertDB(m)
 	}
 }
 
@@ -65,28 +66,33 @@ func main() {
 
 	m := orm.NewModel(myModel)
 
-	fmt.Println(m.String())
-
 	a := []*orm.Model{orm.NewModel(orm.MyModel{Firstname: "Bernice", Lastname: "Smith", Email: "someone@gmail.com", Gender: "Female"}),
 		orm.NewModel(orm.MyModel{Firstname: "McLovin", Lastname: "", Email: "mclovin@gmail.com", Gender: "Male"}),
 	}
 
-	for i, v := range a {
-		fmt.Printf("%d. %v\n", i, v)
+	aModel := orm.AnotherModel{Fee: "Fee",
+		Fi: "Fi",
+		Fo:    "Fo",
+		Fum:   3.14}
+
+	ma := orm.NewModel(aModel)
+
+	// Create and initialize DB only if it doesn't exist
+	if _, err := os.Stat(orm.DB_NAME); err != nil {
+		orm.InitDB(m, ma)
 	}
 
-	// m.SetMetaFields()
-	// // Create and initialize DB only if it doesn't exist
-	// if _, err := os.Stat(orm.DB_NAME); err != nil {
-	// 	orm.InitDB(m)
-	// }
+	// Insert MyModel and array of MyModels
+	orm.InsertDB(m)
+	orm.InsertDB(a...)
 
-	// orm.InsertDB(m)
-	// orm.InsertDB(a...)
-	// list := orm.GetResultsDB(m)
-	// for _, v := range list {
-	// 	fmt.Println(v.ToString())
-	// }
+	// Insert AnotherModel
+	orm.InsertDB(ma)
+
+	list := orm.GetResultsDB(m)
+	for _, v := range list {
+		fmt.Println(v)
+	}
 
 	// http.HandleFunc("/create", createEntry)
 	// http.HandleFunc("/view/", viewEntry)

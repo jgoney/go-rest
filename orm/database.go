@@ -10,13 +10,14 @@ import (
 var DB_NAME string = "./sqlite3.db"
 
 // Initializes a new sqlite3 database; creates file and adds table
-func InitDB(m ...Model) {
+func InitDB(m ...*Model) {
 
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
 
 	// Loop through the model args, and create a table for each model
 	for _, v := range m {
@@ -29,7 +30,7 @@ func InitDB(m ...Model) {
 	}
 }
 
-func InsertDB(m ...Model) error {
+func InsertDB(m ...*Model) error {
 
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
@@ -68,7 +69,7 @@ func InsertDB(m ...Model) error {
 	return nil
 }
 
-func GetResultsDB(m Model) []Model {
+func GetResultsDB(m *Model) []*Model {
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
 		log.Fatal(err)
@@ -85,12 +86,11 @@ func GetResultsDB(m Model) []Model {
 
 	defer rows.Close()
 
-	models := make([]Model, 10)
+	models := make([]*Model, 2)
 
-	i := 0
 	for rows.Next() {
 
-		model := NewModel(new(MyModel))
+		model := NewModel(MyModel{})
 
 		data := make([]interface{}, model.Meta.numFields)
 		dataPtrs := make([]interface{}, model.Meta.numFields)
@@ -102,8 +102,7 @@ func GetResultsDB(m Model) []Model {
 		err := rows.Scan(dataPtrs...)
 
 		model.SetFromByteArray(data)
-		//models[i] = model
-		i++
+		models = append(models, model)
 
 		if err != nil {
 			log.Fatal(err)

@@ -3,6 +3,7 @@ package orm
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -25,18 +26,7 @@ type Meta struct {
 	isSet     bool
 }
 
-// type Modeler interface {
-// 	String() string
-// 	SetMetaFields()
-// 	SetFieldsFromPOST(url.Values)
-// 	GenCreateTable() string
-// 	GenInsertInto() string
-// 	GenValueString() []interface{}
-// 	ExposeFields() []interface{}
-// 	SetFromByteArray([]interface{})
-// }
-
-type Modeler interface{}
+type Modeler interface {}
 
 type Model struct {
 	Modeler
@@ -51,7 +41,7 @@ func NewModel(modeler Modeler) *Model {
 }
 
 func (m *Model) String() string {
-	return fmt.Sprintf("%v : %v\n", m.Modeler, m.Meta)
+	return fmt.Sprintf("%v : %v", m.Modeler, m.Meta)
 }
 
 // Sets metadata fields via reflection. Used to convert Go types to SQL syntax
@@ -79,11 +69,6 @@ func (m *Model) SetMetaFields() {
 // Returns a string used to create a table representing
 func (m *Model) GenCreateTable() string {
 
-	// Check to see if the model's metadata has been set, and set it if not:
-	if !m.Meta.isSet {
-		m.SetMetaFields()
-	}
-
 	// "create table names (id integer not null primary key autoincrement, first_name text, last_name text, email text, gender text);"
 	modelNames := m.Meta.modelName + "s"
 	fields := make([]string, m.Meta.numFields)
@@ -97,11 +82,6 @@ func (m *Model) GenCreateTable() string {
 }
 
 func (m *Model) GenInsertInto() string {
-
-	// Check to see if the model's metadata has been set, and set it if not:
-	if !m.Meta.isSet {
-		m.SetMetaFields()
-	}
 
 	// "insert into names(first_name, last_name, email, gender) values(?, ?, ?, ?)"
 	modelNames := m.Meta.modelName + "s"
@@ -118,25 +98,68 @@ func (m *Model) GenInsertInto() string {
 }
 
 func (m *Model) GenValueString() []interface{} {
-	// Check to see if the model's metadata has been set, and set it if not:
-	if !m.Meta.isSet {
-		m.SetMetaFields()
-	}
+
 	values := make([]interface{}, m.Meta.numFields)
 
-	s := reflect.ValueOf(m).Elem()
-	for i := range m.Meta.elements {
-		values[i] = fmt.Sprintf("%v", s.Field(i).Interface())
+	for i := range values {
+
+		r := reflect.ValueOf(m.Modeler)
+	    f := reflect.Indirect(r).Field(i)
+
+	    // TODO: finish this switch with the rest of the supported types.
+		switch f.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		    values[i] = strconv.FormatInt(f.Int(), 10)
+		case reflect.String:
+		    values[i] = f.String()
+		// etc...
+		}
 	}
 
 	return values
 }
 
-func (m *Model) ExposeFields() []interface{} {
-	// Check to see if the model's metadata has been set, and set it if not:
-	if !m.Meta.isSet {
-		m.SetMetaFields()
+func (m *Model) SetFromByteArray(byteArray []interface{}) {
+
+	if len(byteArray) != m.Meta.numFields {
+		panic("Too many or too few values to unpack.")
 	}
+
+	for i := 0; i < m.Meta.numFields; i++ {
+
+		r := reflect.ValueOf(m.Modeler)
+    	f := reflect.Indirect(r).Field(i).Kind()
+
+    	fmt.Println(r, f)
+    	fmt.Println("type of r:", r.Type())
+		fmt.Println("settability of r:", r.CanSet())
+		fmt.Println("kind of r:", r.Kind())
+
+		// TODO: finish this switch with these types:
+		// "nil":       "null",
+		// "[]byte":    "blob",
+		// "string":    "text",
+		// "time.Time": "timestamp/datetime",
+
+		// switch f.Kind() {
+		// case reflect.String:
+		// 	f.SetString(fmt.Sprintf("%s", byteArray[i]))
+		// case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		// 	fmt.Println(byteArray[i].(int64))
+		// 	fmt.Println(byteArray[i])
+		// 	f.SetInt(f.Int())
+		// case reflect.Float32, reflect.Float64:
+		// 	f.SetFloat(byteArray[i].(float64))
+		// case reflect.Bool:
+		// 	f.SetBool(byteArray[i].(bool))
+		// default:
+		// 	panic(fmt.Sprintf("Not a valid type: %v\n", f.Kind()))
+		// }		
+	}
+}
+
+func (m *Model) ExposeFields() []interface{} {
+
 	values := make([]interface{}, m.Meta.numFields)
 
 	s := reflect.ValueOf(m).Elem()
@@ -149,30 +172,4 @@ func (m *Model) ExposeFields() []interface{} {
 	}
 	fmt.Println(values)
 	return values
-}
-
-func (m *Model) SetFromByteArray(byteArray []interface{}) {
-	// Check to see if the model's metadata has been set, and set it if not:
-	if !m.Meta.isSet {
-		m.SetMetaFields()
-	}
-
-	s := reflect.ValueOf(m).Elem()
-	for i := 0; i < m.Meta.numFields; i++ {
-		f := s.Field(i)
-		t := f.Type()
-		switch t.String() {
-		// TODO: finish this switch with the rest of the supported types.
-		case "string":
-			f.SetString(fmt.Sprintf("%s", byteArray[i]))
-		case "int":
-			f.SetInt(byteArray[i].(int64))
-		case "int64":
-			f.SetInt(byteArray[i].(int64))
-		case "bool":
-			f.SetBool(byteArray[i].(bool))
-			// default:
-			//     some default case here...
-		}
-	}
 }
