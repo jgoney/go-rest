@@ -1,3 +1,8 @@
+/* Package orm provides a simple, dynamic mapping between Go types (provided in a struct) and SQL entries.
+
+This package is very immature; it's missing key functionality, and hasn't been tested in any sort of production setting. You'd probably be better off looking at other ORM options for any serious project.
+*/
+
 package orm
 
 import (
@@ -19,6 +24,7 @@ var typeMappings = map[string]string{
 	"time.Time": "timestamp/datetime",
 }
 
+// Meta is a simple type representing metadata attached to a Model object.
 type Meta struct {
 	modelName string
 	numFields int
@@ -26,13 +32,16 @@ type Meta struct {
 	isSet     bool
 }
 
-type Modeler interface {}
+// Modeler is a placeholder type for the actual user model to be associated with a given Model object.
+type Modeler interface{}
 
+// Model is a representation of a user's model data as a Go object.
 type Model struct {
 	Modeler
 	Meta Meta
 }
 
+// NewModel is a constructor function that accepts a Modeler type (a struct), sets the associated metadata for that struct, and returns a pointer to a Model object.
 func NewModel(modeler Modeler) *Model {
 	m := new(Model)
 	m.Modeler = modeler
@@ -40,11 +49,12 @@ func NewModel(modeler Modeler) *Model {
 	return m
 }
 
+// String implements the Stringer interface for a Model object.
 func (m *Model) String() string {
 	return fmt.Sprintf("%v : %v", m.Modeler, m.Meta)
 }
 
-// Sets metadata fields via reflection. Used to convert Go types to SQL syntax
+// SetMetaFields sets metadata fields via reflection. Used to convert Go types to SQL syntax.
 func (m *Model) SetMetaFields() {
 
 	m.Meta.modelName = reflect.TypeOf(m.Modeler).Name()
@@ -58,7 +68,7 @@ func (m *Model) SetMetaFields() {
 	m.Meta.isSet = true
 }
 
-// Sets fields on a model from POST URL values
+// SetFieldsFromPOST sets fields on a model from POST URL values. Currently not implemented.
 // func (m *Model) SetFieldsFromPOST(urlv url.Values) {
 // 	m.Firstname = strings.Join(urlv["Firstname"], " ")
 // 	m.Lastname = strings.Join(urlv["Lastname"], " ")
@@ -66,10 +76,9 @@ func (m *Model) SetMetaFields() {
 // 	m.Gender = strings.Join(urlv["Gender"], " ")
 // }
 
-// Returns a string used to create a table representing
+// GenCreateTable generates and returns a string used to create a table representing the data fields contained in the Model object.
 func (m *Model) GenCreateTable() string {
 
-	// "create table names (id integer not null primary key autoincrement, first_name text, last_name text, email text, gender text);"
 	modelNames := m.Meta.modelName + "s"
 	fields := make([]string, m.Meta.numFields)
 
@@ -81,9 +90,9 @@ func (m *Model) GenCreateTable() string {
 	return command
 }
 
+// GenInsertInto generates and returns a string used to insert data into a table corresponding to the data in the Model object.
 func (m *Model) GenInsertInto() string {
 
-	// "insert into names(first_name, last_name, email, gender) values(?, ?, ?, ?)"
 	modelNames := m.Meta.modelName + "s"
 	fields := make([]string, m.Meta.numFields)
 	placeholders := make([]string, m.Meta.numFields)
@@ -97,28 +106,32 @@ func (m *Model) GenInsertInto() string {
 	return command
 }
 
-func (m *Model) GenValueString() []interface{} {
+// GenValues generates and returns an array of interface{} objects which are passed as arguments to SQL queries.
+// This mechanism is required to avoid SQL injection.
+func (m *Model) GenValues() []interface{} {
 
 	values := make([]interface{}, m.Meta.numFields)
 
 	for i := range values {
 
 		r := reflect.ValueOf(m.Modeler)
-	    f := reflect.Indirect(r).Field(i)
+		f := reflect.Indirect(r).Field(i)
 
-	    // TODO: finish this switch with the rest of the supported types.
+		// TODO: finish this switch with the rest of the supported types.
 		switch f.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		    values[i] = strconv.FormatInt(f.Int(), 10)
+			values[i] = strconv.FormatInt(f.Int(), 10)
 		case reflect.String:
-		    values[i] = f.String()
-		// etc...
+			values[i] = f.String()
+			// etc...
 		}
 	}
 
 	return values
 }
 
+// SetFromByteArray is meant to set a new Model object's fields based on a SQL query.
+// This method is currently broken.
 func (m *Model) SetFromByteArray(byteArray []interface{}) {
 
 	if len(byteArray) != m.Meta.numFields {
@@ -128,10 +141,10 @@ func (m *Model) SetFromByteArray(byteArray []interface{}) {
 	for i := 0; i < m.Meta.numFields; i++ {
 
 		r := reflect.ValueOf(m.Modeler)
-    	f := reflect.Indirect(r).Field(i).Kind()
+		f := reflect.Indirect(r).Field(i).Kind()
 
-    	fmt.Println(r, f)
-    	fmt.Println("type of r:", r.Type())
+		fmt.Println(r, f)
+		fmt.Println("type of r:", r.Type())
 		fmt.Println("settability of r:", r.CanSet())
 		fmt.Println("kind of r:", r.Kind())
 
@@ -154,22 +167,6 @@ func (m *Model) SetFromByteArray(byteArray []interface{}) {
 		// 	f.SetBool(byteArray[i].(bool))
 		// default:
 		// 	panic(fmt.Sprintf("Not a valid type: %v\n", f.Kind()))
-		// }		
+		// }
 	}
-}
-
-func (m *Model) ExposeFields() []interface{} {
-
-	values := make([]interface{}, m.Meta.numFields)
-
-	s := reflect.ValueOf(m).Elem()
-	typeOfT := s.Type()
-	for i := 0; i < m.Meta.numFields; i++ {
-		f := s.Field(i)
-		fmt.Printf("%d: %s %s = %v\n", i,
-			typeOfT.Field(i).Name, f.Type(), f.Interface())
-		values[i] = f.Interface()
-	}
-	fmt.Println(values)
-	return values
 }

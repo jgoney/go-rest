@@ -6,9 +6,9 @@ import "testing"
 func SetUp() *Model {
 	myModel := MyModel{Id: 0,
 		Firstname: "Justin",
-		Lastname: "Goney",
-		Email:    "goulash@gmail.com",
-		Gender:   "Male"}
+		Lastname:  "Goney",
+		Email:     "goulash@gmail.com",
+		Gender:    "Male"}
 
 	return NewModel(myModel)
 }
@@ -61,14 +61,14 @@ func TestValueString(t *testing.T) {
 
 	command := m.GenValueString()
 
-	for i := range(command) {
+	for i := range command {
 		t.Log(command[i])
 	}
 }
 
 // Tests that metadata fields are correctly set by constructor.
 func TestMetaIsSet(t *testing.T) {
-	
+
 	m := SetUp()
 
 	expectedModelName := "MyModel"
@@ -81,7 +81,7 @@ func TestMetaIsSet(t *testing.T) {
 		t.Errorf("Meta.numFields: %d didn't match %d", m.Meta.numFields, expectedNumFields)
 	}
 
-	for i := range(m.Meta.elements) {
+	for i := range m.Meta.elements {
 
 		typeName := reflect.TypeOf(m.Modeler).Field(i).Name
 		if m.Meta.elements[i][0] != typeName {

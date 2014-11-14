@@ -9,15 +9,15 @@ import (
 
 var DB_NAME string = "./sqlite3.db"
 
-// Initializes a new sqlite3 database; creates file and adds table
+// InitDB initializes a new sqlite3 database; creates file and adds tables based on the Model objects passed as arguments.
 func InitDB(m ...*Model) {
+	// TODO: refactor this to create the database file ONLY. Table creation should be done by another function.
 
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
-
 
 	// Loop through the model args, and create a table for each model
 	for _, v := range m {
@@ -30,6 +30,7 @@ func InitDB(m ...*Model) {
 	}
 }
 
+// InsertDB inserts data into the database based on the contents of the Models passed as arguments.
 func InsertDB(m ...*Model) error {
 
 	db, err := sql.Open("sqlite3", DB_NAME)
@@ -57,7 +58,7 @@ func InsertDB(m ...*Model) error {
 	for _, v := range m {
 		log.Println("Inserting...", v.String())
 
-		_, err = stmt.Exec(v.GenValueString()...)
+		_, err = stmt.Exec(v.GenValues()...)
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -69,6 +70,9 @@ func InsertDB(m ...*Model) error {
 	return nil
 }
 
+// GetResultsDB returns an array of Model objects based on a Model object passed as an argument.
+// Currently, this only returns all the objects of the type passed to args. No filtering or joins are possible yet.
+// Also, this function currently doesn't work, due to SetFromByteArray() not working properly.
 func GetResultsDB(m *Model) []*Model {
 	db, err := sql.Open("sqlite3", DB_NAME)
 	if err != nil {
@@ -90,7 +94,7 @@ func GetResultsDB(m *Model) []*Model {
 
 	for rows.Next() {
 
-		model := NewModel(MyModel{})
+		model := NewModel(ExampleModel{})
 
 		data := make([]interface{}, model.Meta.numFields)
 		dataPtrs := make([]interface{}, model.Meta.numFields)

@@ -2,19 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/jgoney/go-rest/orm"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"github.com/jgoney/go-rest/orm"
 )
-
-type Hello struct{}
-
-func (h Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, r.Method+"\n")
-	fmt.Fprint(w, r.URL)
-}
 
 // Utility function to view available header members
 func enumHeader(w *http.ResponseWriter, r *http.Request) {
@@ -35,8 +28,9 @@ func createEntry(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Fprint(w, r.PostForm)
 
-		model := orm.MyModel{}
+		model := orm.ExampleModel{}
 		m := orm.NewModel(model)
+
 		//model.SetFieldsFromPOST(r.PostForm)
 
 		orm.InsertDB(m)
@@ -59,21 +53,21 @@ func siteRoot(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	myModel := orm.MyModel{Firstname: "Justin",
+	myModel := orm.ExampleModel{Firstname: "Justin",
 		Lastname: "Goney",
 		Email:    "goulash@gmail.com",
 		Gender:   "Male"}
 
 	m := orm.NewModel(myModel)
 
-	a := []*orm.Model{orm.NewModel(orm.MyModel{Firstname: "Bernice", Lastname: "Smith", Email: "someone@gmail.com", Gender: "Female"}),
-		orm.NewModel(orm.MyModel{Firstname: "McLovin", Lastname: "", Email: "mclovin@gmail.com", Gender: "Male"}),
+	a := []*orm.Model{orm.NewModel(orm.ExampleModel{Firstname: "Bernice", Lastname: "Smith", Email: "someone@gmail.com", Gender: "Female"}),
+		orm.NewModel(orm.ExampleModel{Firstname: "McLovin", Lastname: "", Email: "mclovin@gmail.com", Gender: "Male"}),
 	}
 
 	aModel := orm.AnotherModel{Fee: "Fee",
-		Fi: "Fi",
-		Fo:    "Fo",
-		Fum:   3.14}
+		Fi:  "Fi",
+		Fo:  "Fo",
+		Fum: 3.14}
 
 	ma := orm.NewModel(aModel)
 
@@ -82,7 +76,7 @@ func main() {
 		orm.InitDB(m, ma)
 	}
 
-	// Insert MyModel and array of MyModels
+	// Insert ExampleModel and array of ExampleModels
 	orm.InsertDB(m)
 	orm.InsertDB(a...)
 
@@ -94,8 +88,8 @@ func main() {
 		fmt.Println(v)
 	}
 
-	// http.HandleFunc("/create", createEntry)
-	// http.HandleFunc("/view/", viewEntry)
-	// http.HandleFunc("/", siteRoot)
-	// http.ListenAndServe("localhost:4000", nil)
+	http.HandleFunc("/create", createEntry)
+	http.HandleFunc("/view/", viewEntry)
+	http.HandleFunc("/", siteRoot)
+	http.ListenAndServe("localhost:4000", nil)
 }
